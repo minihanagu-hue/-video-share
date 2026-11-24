@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>放映室管理</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@900&display=swap">
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#fbf3ea,#1a0a10);--ink:light-dark(#2a0f18,#f7ebe0);--soft:light-dark(#7a5a62,#c9aeb4);
+--curtain:#4a1426;--light:#fff4e2;--accent:#ff5a3c;--card:light-dark(#fff,#2a121b);--line:light-dark(#ecd9cc,#47222f);--ok:#2a9d8f}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans TC",system-ui,sans-serif}
+header{background:var(--curtain);color:var(--light);padding:18px max(5vw,16px);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+header b{font-family:"Zen Maru Gothic";font-size:22px}
+header a,header button{color:var(--light)}
+main{max-width:960px;margin:0 auto;padding:28px max(5vw,16px) 60px;display:grid;gap:28px}
+h2{font-family:"Zen Maru Gothic";font-size:26px;margin:0 0 12px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+label{display:grid;gap:6px;font-weight:500;font-size:15px}
+input,textarea,button{font:inherit}
+input,textarea{min-height:44px;padding:10px 14px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px}
+textarea{min-height:76px;resize:vertical}
+form{display:grid;gap:14px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.btn{min-height:44px;padding:10px 20px;border-radius:99px;border:0;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;color:inherit;border:2px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.drop{border:3px dashed var(--line);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;color:var(--soft)}
+.drop.on{border-color:var(--accent);color:var(--ink)}
+.drop strong{display:block;color:var(--ink);font-size:18px}
+.queue{display:grid;gap:10px;margin-top:6px}
+.job{border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.job .top{display:flex;justify-content:space-between;gap:10px;font-size:15px}
+.meter{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:6px}
+.meter i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.job.done .meter i{background:var(--ok)}
+.msg{min-height:1.4em;color:var(--accent);font-size:15px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num{text-align:right;white-space:nowrap}
+.st{white-space:nowrap;font-size:13px;padding:2px 10px;border-radius:99px;background:var(--line)}
+.st.ok{background:var(--ok);color:#fff}.st.bad{background:var(--accent);color:#fff}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.acts button{min-height:36px;padding:4px 12px;border-radius:99px;border:2px solid var(--line);background:none;color:inherit;cursor:pointer}
+.thumb{width:96px;aspect-ratio:16/9;border-radius:6px;object-fit:cover;background:var(--line);display:block}
+dialog{border:0;border-radius:14px;padding:22px;width:min(520px,92vw);background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(15,4,8,.6)}
+.hide{display:none!important}
+@media(max-width:640px){.row2{grid-template-columns:1fr}
+ table,tbody,tr,td{display:block}thead{display:none}tr{border-bottom:1px solid var(--line);padding:10px 0}td{border:0;padding:4px 0}td.num{text-align:left}}
+</style>
+</head>
+<body>
+<header><b>放映室管理</b><span><a href="index.html">回到網站</a> <button class="btn ghost hide" id="logout" style="min-height:36px;padding:4px 14px">登出</button></span></header>
+
+<main>
+  <section class="box" id="loginBox">
+    <h2>管理者登入</h2>
+    <form id="loginForm">
+      <label>密碼<input id="pw" type="password" autocomplete="current-password" required></label>
+      <div class="msg" id="loginMsg" aria-live="polite"></div>
+      <button class="btn">登入</button>
+    </form>
+  </section>
+
+  <section class="box hide" id="uploadBox">
+    <h2>上傳影片</h2>
+    <form id="upForm">
+      <div class="drop" id="drop" tabindex="0" role="button">
+        <strong>把影片拖進來，或點這裡選檔案</strong>
+        可一次選多支；大檔案中斷後會自動續傳
+        <input id="file" type="file" accept="video/*" multiple class="hide">
+      </div>
+      <div class="msg" id="fileMsg"></div>
+      <label>標題（多支影片時，會用檔名當標題，之後可改）<input id="uTitle" type="text"></label>
+      <div class="row2">
+        <label>分類<input id="uCat" type="text" list="cats" placeholder="例如：活動紀錄"><datalist id="cats"></datalist></label>
+        <label>日期<input id="uDate" type="date"></label>
+      </div>
+      <label>簡短介紹（選填）<textarea id="uDesc"></textarea></label>
+      <div class="msg" id="upMsg" aria-live="polite"></div>
+      <button class="btn" id="upBtn" disabled>開始上傳</button>
+    </form>
+    <div class="queue" id="queue"></div>
+  </section>
+
+  <section class="box hide" id="listBox">
+    <h2>已上傳的影片</h2>
+    <p style="color:var(--soft);margin:0 0 12px">上傳完成後雲端還需要幾分鐘轉檔，顯示「可播放」才會出現在網站上。</p>
+    <table><thead><tr><th>縮圖</th><th>標題</th><th>分類</th><th>長度</th><th>狀態</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+  </section>
+</main>
+
+<dialog id="edit">
+  <form id="editForm" method="dialog">
+    <h2>編輯影片</h2>
+    <label>標題<input id="eTitle" type="text" required></label>
+    <div class="row2">
+      <label>分類<input id="eCat" type="text" list="cats"></label>
+      <label>日期<input id="eDate" type="date"></label>
+    </div>
+    <label>簡短介紹<textarea id="eDesc"></textarea></label>
+    <div class="acts" style="justify-content:flex-end"><button type="button" class="btn ghost" id="eCancel">取消</button><button class="btn" id="eSave">儲存</button></div>
+  </form>
+</dialog>
+<dialog id="confirmDel">
+  <h2>刪除影片？</h2>
+  <p id="delText"></p>
+  <div class="acts" style="justify-content:flex-end"><button class="btn ghost" id="dNo">取消</button><button class="btn" id="dYes">確定刪除</button></div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/dist/tus.min.js"></script>
+<script>
+{
+/* ===== 改成你的 Cloudflare Worker 網址 ===== */
+const API = "https://video-share-api.你的帳號.workers.dev";
+/* ========================================= */
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let pw = ""; try{ pw = sessionStorage.getItem("vs-pw") || ""; }catch(e){}
+let files = [], videos = [], timer = null;
+
+async function call(path, opt = {}){
+  const r = await fetch(API + path, {...opt, headers: {"Content-Type":"application/json", Authorization: "Bearer " + pw}});
+  const d = await r.json().catch(() => ({}));
+  if(r.status === 401){ logout(); throw new Error("請重新登入"); }
+  if(!r.ok) throw new Error(d.error || "連線失敗（" + r.status + "）");
+  return d;
+}
+
+function show(logged){
+  $("#loginBox").classList.toggle("hide", logged);
+  ["#uploadBox","#listBox","#logout"].forEach(s => $(s).classList.toggle("hide", !logged));
+}
+function logout(){ pw = ""; try{ sessionStorage.removeItem("vs-pw"); }catch(e){} clearInterval(timer); show(false); }
+
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault(); pw = $("#pw").value; $("#loginMsg").textContent = "登入中…";
+  try{ await call("/login", {method:"POST"}); try{ sessionStorage.setItem("vs-pw", pw); }catch(e){} $("#loginMsg").textContent = ""; show(true); load(); }
+  catch(err){ $("#loginMsg").textContent = err.message === "請重新登入" ? "密碼不正確" : err.message; }
+});
+$("#logout").addEventListener("click", logout);
+
+const statusText = v => v.status === 4 ? ['可播放','ok'] : v.status >= 5 ? ['失敗','bad'] : v.status === 3 ? ['轉檔中 ' + v.progress + '%',''] : ['處理中',''];
+const dur = s => s ? Math.floor(s/60) + ":" + String(s%60).padStart(2,"0") : "—";
+
+async function load(){
+  try{ videos = await call("/admin/videos"); }catch(e){ $("#rows").innerHTML = `<tr><td colspan="6">${esc(e.message)}</td></tr>`; return; }
+  $("#cats").innerHTML = [...new Set(videos.map(v => v.cat).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join("");
+  $("#rows").innerHTML = videos.length ? videos.map(v => { const [t,c] = statusText(v); return `
+    <tr><td>${v.thumb && v.status===4 ? `<img class="thumb" src="${esc(v.thumb)}" alt="">` : '<span class="thumb"></span>'}</td>
+    <td>${esc(v.title)}</td><td>${esc(v.cat)}</td><td class="num">${dur(v.length)}</td>
+    <td><span class="st ${c}">${t}</span></td>
+    <td><div class="acts"><button data-e="${esc(v.id)}">編輯</button><button data-d="${esc(v.id)}">刪除</button></div></td></tr>`; }).join("")
+    : `<tr><td colspan="6">還沒有影片，從上面上傳第一支吧。</td></tr>`;
+  clearInterval(timer);
+  if(videos.some(v => v.status < 4)) timer = setInterval(load, 15000); // 有影片在轉檔就每 15 秒更新
+}
+
+/* 選檔 */
+const pick = list => {
+  files = [...list].filter(f => f.type.startsWith("video/"));
+  $("#fileMsg").textContent = files.length ? `已選 ${files.length} 支：` + files.map(f => f.name + "（" + (f.size/1048576).toFixed(0) + " MB）").join("、") : "請選擇影片檔";
+  if(files.length === 1 && !$("#uTitle").value) $("#uTitle").value = files[0].name.replace(/\.[^.]+$/, "");
+  $("#upBtn").disabled = !files.length;
+};
+const drop = $("#drop");
+drop.addEventListener("click", () => $("#file").click());
+drop.addEventListener("keydown", e => { if(e.key==="Enter"||e.key===" "){ e.preventDefault(); $("#file").click(); } });
+$("#file").addEventListener("change", e => pick(e.target.files));
+["dragenter","dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("on"); }));
+["dragleave","drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("on"); }));
+drop.addEventListener("drop", e => pick(e.dataTransfer.files));
+
+/* 上傳 */
+$("#upForm").addEventListener("submit", async e => {
+  e.preventDefault(); if(!files.length) return;
+  const base = {cat: $("#uCat").value.trim(), date: $("#uDate").value, desc: $("#uDesc").value.trim()};
+  const one = files.length === 1, title1 = $("#uTitle").value.trim();
+  const batch = files; files = []; $("#upBtn").disabled = true; $("#fileMsg").textContent = ""; $("#file").value = "";
+  window.onbeforeunload = () => "影片還在上傳";
+  for(const f of batch) await upload(f, {...base, title: (one && title1) || f.name.replace(/\.[^.]+$/, "")});
+  window.onbeforeunload = null; $("#uTitle").value = ""; $("#uDesc").value = "";
+  load();
+});
+
+function upload(file, meta){
+  return new Promise(async done => {
+    const el = document.createElement("div"); el.className = "job";
+    el.innerHTML = `<div class="top"><span>${esc(meta.title)}</span><span class="pct">準備中…</span></div><div class="meter"><i></i></div>`;
+    $("#queue").prepend(el);
+    const pct = el.querySelector(".pct"), bar = el.querySelector("i");
+    let auth;
+    try{ auth = await call("/admin/upload", {method:"POST", body: JSON.stringify(meta)}); }
+    catch(err){ pct.textContent = "失敗：" + err.message; return done(); }
+    const up = new tus.Upload(file, {
+      endpoint: "https://video.bunnycdn.com/tusupload",
+      retryDelays: [0, 3000, 5000, 10000, 20000, 60000],
+      chunkSize: 50 * 1024 * 1024,
+      headers: { AuthorizationSignature: auth.signature, AuthorizationExpire: String(auth.expire), VideoId: auth.videoId, LibraryId: auth.libraryId },
+      metadata: { filetype: file.type, title: meta.title },
+      onProgress: (a, b) => { const p = Math.round(a / b * 100); bar.style.width = p + "%"; pct.textContent = p + "%"; },
+      onSuccess: () => { el.classList.add("done"); bar.style.width = "100%"; pct.textContent = "上傳完成，雲端轉檔中"; done(); },
+      onError: err => { pct.textContent = "上傳中斷：" + (err.message || err).toString().slice(0, 80); done(); }
+    });
+    up.findPreviousUploads().then(prev => { if(prev.length) up.resumeFromPreviousUpload(prev[0]); up.start(); });
+  });
+}
+
+/* 編輯／刪除 */
+let cur = null;
+$("#rows").addEventListener("click", e => {
+  const ed = e.target.closest("[data-e]"), de = e.target.closest("[data-d]");
+  if(ed){ cur = videos.find(v => v.id === ed.dataset.e); $("#eTitle").value = cur.title; $("#eCat").value = cur.cat; $("#eDate").value = cur.date; $("#eDesc").value = cur.desc; $("#edit").showModal(); }
+  if(de){ cur = videos.find(v => v.id === de.dataset.d); $("#delText").textContent = "「" + cur.title + "」會從雲端永久刪除，無法復原。"; $("#confirmDel").showModal(); }
+});
+$("#eCancel").addEventListener("click", () => $("#edit").close());
+$("#editForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try{ await call("/admin/videos/" + cur.id, {method:"POST", body: JSON.stringify({title:$("#eTitle").value, cat:$("#eCat").value, date:$("#eDate").value, desc:$("#eDesc").value})}); $("#edit").close(); load(); }
+  catch(err){ alert(err.message); }
+});
+$("#dNo").addEventListener("click", () => $("#confirmDel").close());
+$("#dYes").addEventListener("click", async () => {
+  try{ await call("/admin/videos/" + cur.id, {method:"DELETE"}); }catch(err){}
+  $("#confirmDel").close(); load();
+});
+
+if(pw){ show(true); load(); }
+}
+</script>
+</body>
+</html>

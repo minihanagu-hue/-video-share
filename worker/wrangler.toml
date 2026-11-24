@@ -1,0 +1,12 @@
+name = "video-share-api"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+BUNNY_LIBRARY_ID = "填入你的影片庫 ID"
+BUNNY_CDN_HOST = "填入 vz-xxxxxxxx-xxx.b-cdn.net"
+SITE_ORIGIN = "https://minihanagu-hue.github.io"
+
+# BUNNY_API_KEY 和 ADMIN_PASSWORD 不要寫在這裡，請用指令設定成 Secret：
+#   npx wrangler secret put BUNNY_API_KEY
+#   npx wrangler secret put ADMIN_PASSWORD
