@@ -158,7 +158,7 @@ footer{background:var(--ink0);color:var(--paper0);font-size:14px;text-align:cent
   <div class="stage">
     <div>
       <h1 id="heroTitle">把想分享的影片，放在同一面布幕上</h1>
-      <p id="heroText">點開就能看，不用到處找連結。依分類瀏覽、搜尋關鍵字，或貼上新的 YouTube 連結一起分享。</p>
+      <p id="heroText">點開就能看，不用到處找連結。依分類瀏覽、搜尋關鍵字，或貼上 YouTube、Google 雲端硬碟的影片連結一起分享。</p>
       <div class="feat-title" id="featTitle"></div>
       <div class="btns">
         <button class="btn main red" id="featPlay">▶ 播放精選影片</button>
@@ -189,6 +189,7 @@ footer{background:var(--ink0);color:var(--paper0);font-size:14px;text-align:cent
       <div>
         <h2>新增影片</h2>
         <p>貼上任何一種 YouTube 連結都可以：一般影片、youtu.be 短網址、Shorts 短影音都行。</p>
+        <p>也可以貼 <strong>Google 雲端硬碟</strong>的影片連結。記得先在雲端硬碟把影片設成「知道連結的任何人都能查看」，不然別人會看不到。</p>
         <p>新增的影片會先存在<strong>這台電腦的瀏覽器</strong>裡，只有你看得到。要讓所有人都看到，請打開下面的「匯出程式碼」，貼進網頁檔案的影片清單，再重新上傳網站。</p>
         <details>
           <summary>匯出程式碼（給網站管理者）</summary>
@@ -197,8 +198,8 @@ footer{background:var(--ink0);color:var(--paper0);font-size:14px;text-align:cent
         </details>
       </div>
       <form id="form" novalidate>
-        <label>YouTube 連結
-          <input id="fUrl" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=…" required>
+        <label>影片連結（YouTube 或 Google 雲端硬碟）
+          <input id="fUrl" type="url" inputmode="url" placeholder="https://www.youtube.com/… 或 https://drive.google.com/file/d/…" required>
         </label>
         <label>影片標題
           <input id="fTitle" type="text" placeholder="例如：部落豐年祭紀錄" required>
@@ -245,12 +246,13 @@ footer{background:var(--ink0);color:var(--paper0);font-size:14px;text-align:cent
 const SITE = {
   name: "影片放映室",
   heroTitle: "把想分享的影片，放在同一面布幕上",
-  heroText: "點開就能看，不用到處找連結。依分類瀏覽、搜尋關鍵字，或貼上新的 YouTube 連結一起分享。",
+  heroText: "點開就能看，不用到處找連結。依分類瀏覽、搜尋關鍵字，或貼上 YouTube、Google 雲端硬碟的影片連結一起分享。",
   featured: 0,  // 精選影片 = 下面清單的第幾支（從 0 開始數）
   api: ""       // 雲端影片：填入你的 Cloudflare Worker 網址，例如 "https://video-share-api.xxx.workers.dev"
 };
 
-/* ========== 影片清單：每支影片一行，貼上 YouTube 連結即可 ========== */
+/* ========== 影片清單：每支影片一行，貼上 YouTube 或 Google 雲端硬碟連結即可 ========== */
+/* 雲端硬碟影片要先設成「知道連結的任何人都能查看」 */
 /* 以下為範例資料，url 留空的會顯示「範例」。換成你自己的連結就會出現真正的縮圖與播放。 */
 const VIDEOS = [
   { title: "範例｜活動精華回顧", url: "", cat: "活動紀錄", date: "2026-11-01", desc: "把一整天的活動濃縮成三分鐘，適合放在最前面當精選。" },
@@ -265,6 +267,17 @@ const VIDEOS = [
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const palettes = [["#47773a","#7f8c4f"],["#b0562f","#dfa43a"],["#2d5f7d","#4f86a8"],["#5a3b26","#b0562f"],["#3f7a2f","#dfa43a"],["#bf3f33","#dfa43a"]];
+
+function parseGD(url){
+  if(!url) return null;
+  try{
+    const u = new URL(String(url).trim());
+    if(!/(^|\.)drive\.google\.com$/.test(u.hostname) && !/(^|\.)docs\.google\.com$/.test(u.hostname)) return null;
+    const m = u.pathname.match(/\/file\/d\/([\w-]{10,})/);
+    const id = m ? m[1] : u.searchParams.get("id");
+    return id && /^[\w-]{10,}$/.test(id) ? {id} : null;
+  }catch(e){ return null; }
+}
 
 function parseYT(url){
   if(!url) return null;
@@ -290,13 +303,13 @@ const saveMine = () => { try{ localStorage.setItem("vs-mine", JSON.stringify(min
 
 let cloud = [];
 const all = () => [...cloud.map(v=>({...v, key:"c"+v.id, cloud:true})), ...VIDEOS.map((v,i)=>({...v, key:"s"+i})), ...mine.map((v,i)=>({...v, key:"m"+i, mine:true}))]
-  .map((v,i) => ({...v, yt: v.cloud ? null : parseYT(v.url), pal: palettes[i % palettes.length]}));
+  .map((v,i) => ({...v, yt: v.cloud ? null : parseYT(v.url), gd: v.cloud ? null : parseGD(v.url), pal: palettes[i % palettes.length]}));
 
 const phSVG = `<svg class="ph" viewBox="0 0 120 80" aria-hidden="true"><rect x="8" y="14" width="74" height="54" rx="8" fill="rgba(255,255,255,.85)"/><path d="M82 32l28-14v46L82 50z" fill="rgba(255,255,255,.6)"/><circle cx="26" cy="8" r="7" fill="rgba(255,255,255,.6)"/><circle cx="52" cy="8" r="7" fill="rgba(255,255,255,.85)"/></svg>`;
 const playSVG = `<div class="play"><svg viewBox="0 0 24 24"><path d="M5 3l16 9-16 9z" fill="#fff"/></svg></div>`;
 
 function thumb(v, big){
-  const src = v.cloud ? v.thumb : v.yt ? `https://i.ytimg.com/vi/${v.yt.id}/${big?"maxresdefault":"hqdefault"}.jpg` : "";
+  const src = v.cloud ? v.thumb : v.gd ? `https://drive.google.com/thumbnail?id=${v.gd.id}&sz=w${big?1280:640}` : v.yt ? `https://i.ytimg.com/vi/${v.yt.id}/${big?"maxresdefault":"hqdefault"}.jpg` : "";
   const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : "";
   return `<div class="thumb" style="--c1:${v.pal[0]};--c2:${v.pal[1]}">${phSVG}${img}</div>${playSVG}`;
 }
@@ -315,7 +328,7 @@ function render(){
   $("#count").textContent = `共 ${list.length} 支影片` + (shown.length !== list.length ? `，目前顯示 ${shown.length} 支` : "");
   $("#grid").innerHTML = shown.length ? shown.map(v => `
     <article class="card" data-k="${v.key}" tabindex="0" aria-label="播放：${esc(v.title)}">
-      <div class="film"><div class="box">${thumb(v)}${v.cloud ? (v.tall ? '<span class="tag">直式</span>' : "") : v.yt ? (v.yt.short ? '<span class="tag">短影音</span>' : "") : '<span class="tag">範例</span>'}</div></div>
+      <div class="film"><div class="box">${thumb(v)}${v.cloud ? (v.tall ? '<span class="tag">直式</span>' : "") : v.gd ? '<span class="tag">雲端硬碟</span>' : v.yt ? (v.yt.short ? '<span class="tag">短影音</span>' : "") : '<span class="tag">範例</span>'}</div></div>
       <div class="info">
         <h3>${esc(v.title)}</h3>
         <div class="meta">${esc([v.cat, v.date].filter(Boolean).join("・"))}</div>
@@ -342,13 +355,15 @@ function open(key){
   vid.className = "vid" + ((v.yt && v.yt.short) || (v.cloud && v.tall) ? " tall" : "");
   vid.innerHTML = v.cloud
     ? `<iframe src="${esc(v.embed)}?autoplay=true&preload=true&responsive=true" title="${esc(v.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`
+    : v.gd
+    ? `<iframe src="https://drive.google.com/file/d/${esc(v.gd.id)}/preview" title="${esc(v.title)}" allow="autoplay; fullscreen" allowfullscreen></iframe>`
     : v.yt
     ? `<iframe src="https://www.youtube.com/embed/${esc(v.yt.id)}?autoplay=1&rel=0&playsinline=1${location.protocol.startsWith("http") ? "&origin=" + encodeURIComponent(location.origin) : ""}" title="${esc(v.title)}" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" allowfullscreen></iframe>`
-    : `<div class="thumb" style="--c1:${v.pal[0]};--c2:${v.pal[1]}">${phSVG}</div><div class="tag">這是範例，請在清單裡填入 YouTube 連結</div>`;
+    : `<div class="thumb" style="--c1:${v.pal[0]};--c2:${v.pal[1]}">${phSVG}</div><div class="tag">這是範例，請在清單裡填入影片連結</div>`;
   $("#pTitle").textContent = v.title;
   $("#pMeta").textContent = [v.cat, v.date].filter(Boolean).join("・");
-  $("#pYT").textContent = v.cloud ? "開新視窗觀看" : "在 YouTube 開啟";
-  const link = v.cloud ? v.play : v.yt ? (v.yt.short ? `https://www.youtube.com/shorts/${v.yt.id}` : `https://www.youtube.com/watch?v=${v.yt.id}`) : "";
+  $("#pYT").textContent = v.cloud ? "開新視窗觀看" : v.gd ? "在雲端硬碟開啟" : "在 YouTube 開啟";
+  const link = v.cloud ? v.play : v.gd ? `https://drive.google.com/file/d/${v.gd.id}/view` : v.yt ? (v.yt.short ? `https://www.youtube.com/shorts/${v.yt.id}` : `https://www.youtube.com/watch?v=${v.yt.id}`) : "";
   $("#pYT").style.display = $("#pCopy").style.display = link ? "" : "none";
   $("#pYT").href = link || "#"; $("#pCopy").dataset.link = link;
   $("#modal").classList.add("open"); $("#close").focus();
@@ -379,10 +394,10 @@ $("#copyCode").addEventListener("click", () => copy($("#code").textContent));
 $("#form").addEventListener("submit", e => {
   e.preventDefault();
   const url = $("#fUrl").value.trim(), title = $("#fTitle").value.trim();
-  const yt = parseYT(url);
-  if(!yt){ $("#msg").textContent = "看不懂這個連結，請貼上 YouTube 影片網址。"; $("#fUrl").focus(); return; }
+  const yt = parseYT(url), gd = parseGD(url);
+  if(!yt && !gd){ $("#msg").textContent = "看不懂這個連結，請貼上 YouTube 或 Google 雲端硬碟的影片網址。"; $("#fUrl").focus(); return; }
   if(!title){ $("#msg").textContent = "請幫影片取個標題。"; $("#fTitle").focus(); return; }
-  mine.push({title, url, cat: $("#fCat").value.trim() || (yt.short ? "短影音" : "其他"), date: $("#fDate").value, desc: $("#fDesc").value.trim()});
+  mine.push({title, url, cat: $("#fCat").value.trim() || (yt && yt.short ? "短影音" : "其他"), date: $("#fDate").value, desc: $("#fDesc").value.trim()});
   saveMine(); e.target.reset(); $("#msg").textContent = "已加入「" + title + "」！"; render();
 });
 
